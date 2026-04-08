@@ -1,0 +1,121 @@
+[
+    {
+        "task_id": "hard_1",
+        "patient": {
+            "age": 60,
+            "gender": "male",
+            "conditions": [
+                "Type 2 Diabetes",
+                "Asthma"
+            ],
+            "lab_results": {
+                "HbA1c": 8.5
+            }
+        },
+        "trials": [
+            {
+                "id": "T1_Diabetes",
+                "age_min": 18,
+                "age_max": 80,
+                "required_conditions": [
+                    "Type 2 Diabetes"
+                ],
+                "excluded_conditions": [
+                    "kidney disease"
+                ],
+                "lab_criteria": {
+                    "HbA1c": "> 7.5"
+                }
+            },
+            {
+                "id": "T2_Asthma",
+                "age_min": 18,
+                "age_max": 65,
+                "required_conditions": [
+                    "Asthma"
+                ],
+                "excluded_conditions": [
+                    "Type 2 Diabetes"
+                ],
+                "lab_criteria": {}
+            },
+            {
+                "id": "T3_General",
+                "age_min": 18,
+                "age_max": 65,
+                "required_conditions": [],
+                "excluded_conditions": [
+                    "kidney disease"
+                ],
+                "lab_criteria": {}
+            }
+        ],
+        "expected_decisions": {
+            "T1_Diabetes": "eligible",
+            "T2_Asthma": "ineligible",
+            "T3_General": "eligible"
+        },
+        "expected_ranking": [
+            "T1_Diabetes",
+            "T3_General",
+            "T2_Asthma"
+        ]
+    },
+    {
+        "task_id": "hard_2",
+        "patient": {
+            "age": 30,
+            "gender": "female",
+            "conditions": [
+                "Asthma",
+                "pregnant"
+            ],
+            "lab_results": {}
+        },
+        "trials": [
+            {
+                "id": "T_Maternal",
+                "age_min": 18,
+                "age_max": 40,
+                "required_conditions": [
+                    "pregnant"
+                ],
+                "excluded_conditions": [],
+                "lab_criteria": {}
+            },
+            {
+                "id": "T_Resp",
+                "age_min": 18,
+                "age_max": 40,
+                "required_conditions": [
+                    "Asthma"
+                ],
+                "excluded_conditions": [
+                    "pregnant"
+                ],
+                "lab_criteria": {}
+            },
+            {
+                "id": "T_Control",
+                "age_min": 18,
+                "age_max": 65,
+                "required_conditions": [],
+                "excluded_conditions": [
+                    "pregnant",
+                    "Asthma"
+                ],
+                "lab_criteria": {}
+            }
+        ],
+        "expected_decisions": {
+            "T_Maternal": "eligible",
+            "T_Resp": "ineligible",
+            "T_Control": "ineligible"
+        },
+        "expected_ranking": [
+            "T_Maternal",
+            "T_Resp",
+            "T_Control"
+        ]
+    }
+]

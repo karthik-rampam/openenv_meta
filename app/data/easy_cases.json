@@ -1,0 +1,172 @@
+[
+  {
+    "task_id": "easy_1",
+    "patient": {
+      "age": 54,
+      "gender": "female",
+      "conditions": ["Type 2 Diabetes"],
+      "lab_results": {"HbA1c": 8.2}
+    },
+    "trial": {
+      "age_min": 30,
+      "age_max": 70,
+      "required_conditions": ["Type 2 Diabetes"],
+      "excluded_conditions": ["kidney disease", "pregnant"],
+      "lab_criteria": {"HbA1c": "> 7.5"}
+    },
+    "expected_decision": "eligible"
+  },
+  {
+    "task_id": "easy_2",
+    "patient": {
+      "age": 25,
+      "gender": "male",
+      "conditions": ["Type 2 Diabetes"],
+      "lab_results": {"HbA1c": 8.0}
+    },
+    "trial": {
+      "age_min": 30,
+      "age_max": 70,
+      "required_conditions": ["Type 2 Diabetes"],
+      "excluded_conditions": [],
+      "lab_criteria": {}
+    },
+    "expected_decision": "ineligible"
+  },
+  {
+    "task_id": "easy_3",
+    "patient": {
+      "age": 45,
+      "gender": "female",
+      "conditions": ["Type 2 Diabetes", "pregnant"],
+      "lab_results": {"HbA1c": 7.8}
+    },
+    "trial": {
+      "age_min": 18,
+      "age_max": 65,
+      "required_conditions": ["Type 2 Diabetes"],
+      "excluded_conditions": ["pregnant"],
+      "lab_criteria": {}
+    },
+    "expected_decision": "ineligible"
+  },
+  {
+    "task_id": "easy_4",
+    "patient": {
+      "age": 40,
+      "gender": "male",
+      "conditions": ["Asthma"],
+      "lab_results": {}
+    },
+    "trial": {
+      "age_min": 18,
+      "age_max": 65,
+      "required_conditions": ["Asthma"],
+      "excluded_conditions": [],
+      "lab_criteria": {}
+    },
+    "expected_decision": "eligible"
+  },
+  {
+    "task_id": "easy_5",
+    "patient": {
+      "age": 50,
+      "gender": "female",
+      "conditions": ["Hypertension"],
+      "lab_results": {}
+    },
+    "trial": {
+      "age_min": 18,
+      "age_max": 65,
+      "required_conditions": ["Asthma"],
+      "excluded_conditions": [],
+      "lab_criteria": {}
+    },
+    "expected_decision": "ineligible"
+  },
+  {
+    "task_id": "easy_6",
+    "patient": {
+      "age": 55,
+      "gender": "male",
+      "conditions": ["Type 2 Diabetes"],
+      "lab_results": {"HbA1c": 6.0}
+    },
+    "trial": {
+      "age_min": 40,
+      "age_max": 80,
+      "required_conditions": ["Type 2 Diabetes"],
+      "excluded_conditions": [],
+      "lab_criteria": {"HbA1c": "> 7.5"}
+    },
+    "expected_decision": "ineligible"
+  },
+  {
+    "task_id": "easy_7",
+    "patient": {
+      "age": 62,
+      "gender": "male",
+      "conditions": ["Type 2 Diabetes", "kidney disease"],
+      "lab_results": {"HbA1c": 8.5}
+    },
+    "trial": {
+      "age_min": 50,
+      "age_max": 75,
+      "required_conditions": ["Type 2 Diabetes"],
+      "excluded_conditions": ["kidney disease"],
+      "lab_criteria": {}
+    },
+    "expected_decision": "ineligible"
+  },
+  {
+    "task_id": "easy_8",
+    "patient": {
+      "age": 60,
+      "gender": "male",
+      "conditions": ["Type 2 Diabetes", "Hyperlipidemia"],
+      "lab_results": {"HbA1c": 9.0}
+    },
+    "trial": {
+      "age_min": 50,
+      "age_max": 80,
+      "required_conditions": ["Type 2 Diabetes"],
+      "excluded_conditions": [],
+      "lab_criteria": {"HbA1c": "> 8.0"}
+    },
+    "expected_decision": "eligible"
+  },
+  {
+    "task_id": "easy_9",
+    "patient": {
+      "age": 35,
+      "gender": "female",
+      "conditions": [],
+      "lab_results": {"HbA1c": 8.0}
+    },
+    "trial": {
+      "age_min": 18,
+      "age_max": 65,
+      "required_conditions": ["Type 2 Diabetes"],
+      "excluded_conditions": ["pregnant"],
+      "lab_criteria": {}
+    },
+    "expected_decision": "ineligible"
+  },
+  {
+    "task_id": "easy_10",
+    "patient": {
+      "age": 32,
+      "gender": "female",
+      "conditions": ["Migraine"],
+      "lab_results": {}
+    },
+    "trial": {
+      "age_min": 18,
+      "age_max": 40,
+      "required_conditions": ["Migraine"],
+      "excluded_conditions": ["pregnant"],
+      "lab_criteria": {}
+    },
+    "expected_decision": "eligible"
+  }
+]

@@ -1,0 +1,5 @@
+name: clinical-trial-openenv
+version: 0.1.0
+description: "A Meta + HuggingFace OpenEnv environments simulating clinical trial match-and-rank workflows."
+environment:
+  entrypoint: environment:ClinicalTrialEnv

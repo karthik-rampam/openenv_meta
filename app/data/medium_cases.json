@@ -1,0 +1,118 @@
+[
+    {
+        "task_id": "medium_1",
+        "patient": {
+            "age": 45,
+            "gender": "female",
+            "conditions": [
+                "Borderline Diabetes"
+            ],
+            "lab_results": {
+                "HbA1c": 6.4
+            }
+        },
+        "trial": {
+            "age_min": 18,
+            "age_max": 65,
+            "required_conditions": [
+                "Type 2 Diabetes"
+            ],
+            "excluded_conditions": [],
+            "lab_criteria": {}
+        },
+        "expected_decision": "needs_review"
+    },
+    {
+        "task_id": "medium_2",
+        "patient": {
+            "age": 28,
+            "gender": "female",
+            "conditions": [
+                "Asthma"
+            ],
+            "lab_results": {}
+        },
+        "trial": {
+            "age_min": 18,
+            "age_max": 40,
+            "required_conditions": [
+                "Asthma"
+            ],
+            "excluded_conditions": [
+                "pregnant"
+            ],
+            "lab_criteria": {}
+        },
+        "expected_decision": "needs_review"
+    },
+    {
+        "task_id": "medium_3",
+        "patient": {
+            "age": 50,
+            "gender": "male",
+            "conditions": [
+                "Type 2 Diabetes"
+            ],
+            "lab_results": {
+                "HbA1c": 7.5
+            }
+        },
+        "trial": {
+            "age_min": 18,
+            "age_max": 65,
+            "required_conditions": [
+                "Type 2 Diabetes"
+            ],
+            "excluded_conditions": [],
+            "lab_criteria": {
+                "HbA1c": "> 7.5"
+            }
+        },
+        "expected_decision": "needs_review"
+    },
+    {
+        "task_id": "medium_4",
+        "patient": {
+            "age": 60,
+            "gender": "male",
+            "conditions": [
+                "Type 2 Diabetes",
+                "CKD Stage 2"
+            ],
+            "lab_results": {}
+        },
+        "trial": {
+            "age_min": 50,
+            "age_max": 75,
+            "required_conditions": [
+                "Type 2 Diabetes"
+            ],
+            "excluded_conditions": [
+                "kidney disease"
+            ],
+            "lab_criteria": {}
+        },
+        "expected_decision": "needs_review"
+    },
+    {
+        "task_id": "medium_5",
+        "patient": {
+            "age": 35,
+            "gender": "female",
+            "conditions": [
+                "History of Migraine"
+            ],
+            "lab_results": {}
+        },
+        "trial": {
+            "age_min": 18,
+            "age_max": 50,
+            "required_conditions": [
+                "Migraine"
+            ],
+            "excluded_conditions": [],
+            "lab_criteria": {}
+        },
+        "expected_decision": "needs_review"
+    }
+]
