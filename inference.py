@@ -65,100 +65,66 @@ You MUST output valid JSON ONLY matching exactly this schema:
     return prompt
 
 def run_agent():
+    console.print(Panel.fit("[bold blue]🏥 Clinical Trial OpenEnv - AI Coordinator Benchmark[/bold blue]"))
+    
     env = ClinicalTrialEnv()
-    obs = env.reset()
+    
+    # We MUST run at least 3 tasks to pass Phase 2 validation
+    for i in range(3):
+        console.print(f"\n[bold green]🏁 Starting Benchmark Task {i+1}/3[/bold green]")
+        
+        # 1. RESET
+        obs = env.reset()
+        # REQUIRED BY CHECKLIST: [START] task=ID
+        print(f"[START] task={obs.task_id}", flush=True)
 
-    # REQUIRED BY CHECKLIST: [START] task=ID
-    print(f"[START] task={obs.task_id}", flush=True)
-    
-    console.print(f"  [bold green]▶ Loading Hospital Scenario:[/bold green] {obs.task_id}")
-    console.print(f"  [yellow]- Patient Profile:[/yellow] Age {obs.patient.age}, {obs.patient.gender}")
-    conds = ", ".join(obs.patient.conditions) if obs.patient.conditions else "None"
-    console.print(f"  [yellow]- Medical Conditions:[/yellow] {conds}")
-    console.print(f"  [yellow]- Clinical Trials Available:[/yellow] {len(obs.trials)}")
-    
-    client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
-    prompt = build_prompt(obs)
-    
-    console.print("\n[bold magenta]👁️  [OpenEnv: env.state()][/bold magenta]")
-    console.print("  [cyan]🤖 Injecting State Observation into Llama Coordinator...[/cyan]")
-    
-    try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": "You are a specialized JSON parser agent assisting with clinical trials. Do not wrap JSON in markdown blocks."},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={ "type": "json_object" }
-        )
+        console.print(f"  [bold green]▶ Case ID:[/bold green] {obs.task_id}")
+        console.print(f"  [yellow]- Patient Profile:[/yellow] Age {obs.patient.age}, {obs.patient.gender}")
+        conds = ", ".join(obs.patient.conditions) if obs.patient.conditions else "None"
+        console.print(f"  [yellow]- Medical Conditions:[/yellow] {conds}")
+        console.print(f"  [yellow]- Clinical Trials Available:[/yellow] {len(obs.trials)}")
         
-        result_str = response.choices[0].message.content
-        result_json = json.loads(result_str)
-        action = Action(**result_json)
+        # 2. STATE (Logic)
+        client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
+        prompt = build_prompt(obs)
         
-    except Exception as e:
-        console.print(f"\n[bold red]❌ LLM Failure. Could not parse action correctly. Error: {e}[/bold red]")
-        return
+        console.print("  [cyan]🤖 Injecting State Observation into Llama Coordinator...[/cyan]")
         
-    next_obs, reward, done, info = env.step(action)
-
-    # REQUIRED BY CHECKLIST: [STEP] step=IDX reward=VAL
-    print(f"[STEP] step=1 reward={reward}", flush=True)
-    
-    # --- PRO-HACKATHON PRESENTATION ---
-    console.print(Panel(f"[italic cyan]\"{action.reasoning_summary}\"[/italic cyan]", title="🧠 Coordinator's Core Reasoning", border_style="cyan"))
-    
-    table = Table(show_header=True, header_style="bold white", title="📋 AI Trial Matching Output")
-    table.add_column("Trial ID", style="cyan")
-    table.add_column("Req. Conditions", style="dim")
-    table.add_column("AI Decision", justify="center")
-    table.add_column("AI Confidence", justify="center")
-    
-    for t in obs.trials:
-        eval = next((te for te in action.trial_evaluations if te.trial_id == t.id), None)
-        if not eval:
+        try:
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": "You are a specialized JSON parser agent assisting with clinical trials. Do not wrap JSON in markdown blocks."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={ "type": "json_object" }
+            )
+            
+            result_str = response.choices[0].message.content
+            result_json = json.loads(result_str)
+            action = Action(**result_json)
+            
+        except Exception as e:
+            console.print(f"\n[bold red]❌ LLM Failure. Could not parse action correctly. Error: {e}[/bold red]")
+            # Log failure but continue to next task
+            print(f"[END] task={obs.task_id} score=0.01 steps=1", flush=True)
             continue
             
-        if eval.decision == "eligible":
-            color = "bold green"
-            icon = "✅"
-        elif eval.decision == "ineligible":
-            color = "bold red"
-            icon = "❌"
-        else:
-            color = "bold yellow"
-            icon = "⚠️"
+        # 3. STEP
+        next_obs, reward, done, info = env.step(action)
+        # REQUIRED BY CHECKLIST: [STEP] step=IDX reward=VAL
+        print(f"[STEP] step=1 reward={reward}", flush=True)
             
-        decision_label = f"[{color}]{eval.decision.upper()} {icon}[/{color}]"
-        req = ", ".join(t.required_conditions) if t.required_conditions else "None"
+        console.print(f"  [cyan]⚖️ Grade Received: {reward*100:.1f}%[/cyan]")
         
-        table.add_row(t.id, req, decision_label, f"{action.confidence*100:.1f}%")
+        # --- PRO-HACKATHON PRESENTATION ---
+        console.print(Panel(f"[italic cyan]\"{action.reasoning_summary}\"[/italic cyan]", title=f"🧠 Reasoning for {obs.task_id}", border_style="cyan"))
         
-    console.print(table)
-    console.print(f"\n[bold blue]AI's Recommended Priority Ranking:[/bold blue] {' ➡️ '.join(action.ranked_trial_ids)}\n")
-    
-    grade_pct = int(reward * 100)
-    grade_color = "green" if grade_pct >= 80 else ("yellow" if grade_pct >= 50 else "red")
-    
-    verdict_txt = f"[bold {grade_color}]Overall Accuracy Grade: {grade_pct}%[/bold {grade_color}] [dim](Math Score: {reward:.3f}/1.0)[/dim]\n\n"
-    
-    pen = info['reward_breakdown'].get('penalties', 0)
-    if pen < 0:
-        verdict_txt += f"❌ [bold red]CRITICAL SAFETY WARNING: AI missed a dangerous medical exclusion! Heavy Penalty Applied.[/bold red]\n"
-    else:
-        verdict_txt += f"✅ [bold green]Safety Check: Passed (No dangerous conditions missed)[/bold green]\n"
-        
-    if info.get('ranking_correct'):
-        verdict_txt += f"✅ [bold green]Ranking Check: Passed (AI ranked the priority perfectly)[/bold green]\n"
-    else:
-        verdict_txt += f"⚠️ [bold yellow]Ranking Check: Failed/Partial[/bold yellow] [dim](Expected {info.get('expected_ranking', [])}, but AI chose {info.get('actual_ranking', [])})[/dim]\n"
-        
-    console.print(Panel(verdict_txt.strip(), title="⚖️ Deterministic Ground-Truth Grader Result", border_style=grade_color))
-    console.print("\n[dim italic]This benchmark mathematically proves the Meta LLM can securely automate clinical match workflows.[/dim italic]\n")
+        # 4. END
+        # REQUIRED BY CHECKLIST: [END] task=ID score=VAL steps=N
+        print(f"[END] task={obs.task_id} score={reward} steps=1", flush=True)
 
-    # REQUIRED BY CHECKLIST: [END] task=ID score=VAL steps=N
-    print(f"[END] task={obs.task_id} score={reward} steps=1", flush=True)
+    console.print("\n[dim italic]Multi-task benchmark complete. Total 3 scenarios evaluated.[/dim italic]\n")
 
 if __name__ == "__main__":
     run_agent()

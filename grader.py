@@ -79,8 +79,8 @@ class Grader:
         else:
             info["reward_breakdown"]["ranking"] = 0.0
 
-        # Final clip
-        total_reward = max(0.0, min(1.0, total_reward))
+        # Final clip: Validator requires strictly between 0 and 1 (not 0.0 and not 1.0)
+        total_reward = max(0.01, min(0.99, total_reward))
         info["total_reward"] = total_reward
         
         return total_reward, info
