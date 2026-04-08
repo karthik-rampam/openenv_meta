@@ -130,15 +130,19 @@ def run_recruitment():
         t_info = f"**Target Trial:** {trial.id} | **Requires:** {', '.join(trial.required_conditions)}"
         eval_md = f"### 📊 Recruitment Summary\n> {result.get('reasoning_summary', 'Batch Complete.')}"
         
+        patient_display_names = [f"Patient_{i+1}" for i in range(len(mock_patients))]
+        
         table_data = []
-        for i, p_id in enumerate(patient_ids):
-            eval_item = next((te for te in evals if te["trial_id"] in [f"P{i+1}", p_id]), None)
+        for i, p_display in enumerate(patient_display_names):
+            p_id = patient_ids[i]
+            # Try to find evaluation by P1, P2... or by the patient ID itself
+            eval_item = next((te for te in evals if te["trial_id"] in [f"P{i+1}", p_id, p_display]), None)
             decision = eval_item["decision"].upper() if eval_item else "REVIEW"
             reason = eval_item["reason"] if eval_item else "..."
             icon = "✅" if "ELIGIBLE" in decision else ("❌" if "INELIGIBLE" in decision else "⚠️")
             
             conds = ", ".join(mock_patients[i].conditions) if mock_patients[i].conditions else "None"
-            table_data.append([p_id, conds, f"{decision} {icon}", reason])
+            table_data.append([p_display, conds, f"{decision} {icon}", reason])
             
         return t_info, eval_md, table_data
     except Exception as e:
