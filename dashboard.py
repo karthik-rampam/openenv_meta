@@ -24,14 +24,16 @@ def get_patients_and_trials(env):
     for i, c in enumerate(env.cases):
         p = c["patient"]
         p["name"] = f"Patient_{i+1}" 
+        # Extract complexity from task_id (e.g. easy_1 -> Easy)
+        p["complexity"] = c["task_id"].split("_")[0].capitalize()
         patients.append(p)
         
         for t in c.get("trials", []):
-            # Deterministic ID based on criteria to avoid duplicates in catalog
             sig = str(t.get("required_conditions")) + str(t.get("excluded_conditions")) + str(t.get("lab_criteria"))
             if sig not in seen_trial_signatures:
                 seen_trial_signatures.add(sig)
                 t["id"] = f"Trial_{len(seen_trial_signatures):02d}"
+                t["complexity"] = c["task_id"].split("_")[0].capitalize()
                 trials.append(t)
                 
     return patients, trials
@@ -101,7 +103,7 @@ def run_diagnostic():
         result = json.loads(response.choices[0].message.content)
         evals = result.get("trial_evaluations", [])
 
-        p_info = f"**Patient:** {target_patient['name']} ({target_patient.get('age')}y, {target_patient.get('gender')})\n**History:** {', '.join(target_patient.get('conditions', []))}"
+        p_info = f"**Patient:** {target_patient['name']} | **Difficulty:** {target_patient.get('complexity')} | **Age:** {target_patient.get('age')}y\n**History:** {', '.join(target_patient.get('conditions', []))}"
         eval_md = f"### 🧠 AI Overview\n> {result.get('reasoning_summary', 'Diagnostic scan complete.')}"
         
         table_data = []
@@ -137,7 +139,7 @@ def run_recruitment():
         result = json.loads(response.choices[0].message.content)
         evals = result.get("trial_evaluations", [])
         
-        t_info = f"**Target Trial:** {target_trial['id']} | **Requires:** {', '.join(target_trial.get('required_conditions', []))}"
+        t_info = f"**Target Trial:** {target_trial['id']} | **Tier:** {target_trial.get('complexity')}\n**Requires:** {', '.join(target_trial.get('required_conditions', []))}"
         eval_md = f"### 📊 Recruitment Summary\n> {result.get('reasoning_summary', 'Batch complete.')}"
         
         table_data = []
