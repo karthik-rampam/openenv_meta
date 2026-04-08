@@ -16,23 +16,36 @@ API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 env = ClinicalTrialEnv()
 
+def get_patients_and_trials(env):
+    patients = []
+    trials = []
+    seen_trial_signatures = set()
+    
+    for i, c in enumerate(env.cases):
+        p = c["patient"]
+        p["name"] = f"Patient_{i+1}" 
+        patients.append(p)
+        
+        for t in c.get("trials", []):
+            # Deterministic ID based on criteria to avoid duplicates in catalog
+            sig = str(t.get("required_conditions")) + str(t.get("excluded_conditions")) + str(t.get("lab_criteria"))
+            if sig not in seen_trial_signatures:
+                seen_trial_signatures.add(sig)
+                t["id"] = f"Trial_{len(seen_trial_signatures):02d}"
+                trials.append(t)
+                
+    return patients, trials
+
 def get_shared_schema():
     return """
 You MUST output valid JSON ONLY matching exactly this schema:
 {
-  "reasoning_summary": "Summarize total batch findings.",
+  "reasoning_summary": "Summarize total findings for the entire batch.",
   "trial_evaluations": [
     {
-      "trial_id": "string (the ID of the trial OR the ID of the patient)",
+      "trial_id": "string",
       "decision": "eligible" | "ineligible" | "needs_review",
-      "reason": "One specific sentence explaining this exact match decision.",
-      "criterion_evaluations": [
-        {
-          "criterion_name": "string",
-          "met": true/false,
-          "reason": "string"
-        }
-      ]
+      "reason": "One specific sentence explaining this exact match decision."
     }
   ],
   "ranked_trial_ids": ["id_1", "id_2"],
@@ -40,43 +53,44 @@ You MUST output valid JSON ONLY matching exactly this schema:
 }
 """
 
-def build_diagnostic_prompt(obs):
-    patient = obs.patient.model_dump()
-    trials = [t.model_dump() for t in obs.trials]
+def build_diagnostic_prompt(patient, all_trials):
     return f"""
 You are an expert Clinical Trial Coordinator AI. 
-Evaluate ONE patient against ALL available trials.
+DIAGNOSTIC MODE: Evaluate ONE patient against the entire Regional Trial Catalog.
+You MUST provide a separate evaluation for EVERY trial ID in the provided list.
 
 PATIENT RECORD:
 {json.dumps(patient, indent=2)}
 
-AVAILABLE TRIALS:
-{json.dumps(trials, indent=2)}
+TRIAL CATALOG:
+{json.dumps(all_trials, indent=2)}
 
 {get_shared_schema()}
 """
 
 def build_recruitment_prompt(trial, patients):
-    # Map for recruitment
     return f"""
 You are an expert Recruitment Specialist. 
-Evaluate ONE trial against a batch of patients.
+RECRUITMENT MODE: Evaluate ONE trial against a batch of patients.
+You MUST provide a separate evaluation for EACH Patient ID in the provided list.
 
 TRIAL CRITERIA:
-{json.dumps(trial.model_dump(), indent=2)}
+{json.dumps(trial, indent=2)}
 
 PATIENT DATABASE:
-{json.dumps([{"id": f"P{i+1}", "data": p.model_dump()} for i, p in enumerate(patients)], indent=2)}
+{json.dumps([{"id": f"Patient_{i+1}", "data": p} for i, p in enumerate(patients)], indent=2)}
 
-Rule: In "trial_evaluations", use the Patient ID (P1, P2...) as the "trial_id" field.
+Important: In "trial_evaluations", use the Patient ID (Patient_1, Patient_2...) as the "trial_id" field.
 
 {get_shared_schema()}
 """
 
 def run_diagnostic():
-    obs = env.reset()
+    patients, all_trials = get_patients_and_trials(env)
+    target_patient = random.choice(patients)
+    
     client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
-    prompt = build_diagnostic_prompt(obs)
+    prompt = build_diagnostic_prompt(target_patient, all_trials)
     
     try:
         response = client.chat.completions.create(
@@ -85,38 +99,34 @@ def run_diagnostic():
             response_format={"type": "json_object"}
         )
         result = json.loads(response.choices[0].message.content)
-        action = Action(**result)
-        _, reward, _, _ = env.step(action)
+        evals = result.get("trial_evaluations", [])
 
-        p_info = f"**Patient:** {obs.task_id} | **Age:** {obs.patient.age} | **Conditions:** {', '.join(obs.patient.conditions)}"
-        eval_md = f"### 🧠 AI Overview\n> {action.reasoning_summary}\n\n**⚖️ Accuracy Score:** {reward*100:.1f}%"
+        p_info = f"**Patient:** {target_patient['name']} ({target_patient.get('age')}y, {target_patient.get('gender')})\n**History:** {', '.join(target_patient.get('conditions', []))}"
+        eval_md = f"### 🧠 AI Overview\n> {result.get('reasoning_summary', 'Diagnostic scan complete.')}"
         
         table_data = []
-        for t in obs.trials:
-            eval_item = next((te for te in result.get("trial_evaluations", []) if te["trial_id"] == t.id), None)
+        for t in all_trials:
+            eval_item = next((te for te in evals if te["trial_id"] == t["id"]), None)
             decision = eval_item["decision"].upper() if eval_item else "PENDING"
-            reason = eval_item["reason"] if eval_item else "..."
+            reason = eval_item["reason"] if eval_item else "No reason provided."
             icon = "✅" if "ELIGIBLE" in decision else ("❌" if "INELIGIBLE" in decision else "⚠️")
             
-            reqs = ", ".join(t.required_conditions) if t.required_conditions else "None"
-            table_data.append([t.id, reqs, f"{decision} {icon}", reason])
+            reqs = ", ".join(t.get("required_conditions", []))
+            table_data.append([t["id"], reqs, f"{decision} {icon}", reason])
             
         return p_info, eval_md, table_data
     except Exception as e:
-        return f"Error", f"Error: {e}", []
+        return f"Error loading patient", f"AI Processing Error: {e}", []
 
 def run_recruitment():
-    obs = env.reset()
-    trial = obs.trials[0]
+    patients, all_trials = get_patients_and_trials(env)
+    target_trial = random.choice(all_trials)
     
-    # Sample 4 random patients
-    raw_cases = env.cases
-    random_cases = random.sample(raw_cases, min(4, len(raw_cases)))
-    mock_patients = [Patient(**c["patient"]) for c in random_cases]
-    patient_ids = [c["task_id"] for c in random_cases]
+    # Sample 5 random patients
+    scan_list = random.sample(patients, min(5, len(patients)))
     
     client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
-    prompt = build_recruitment_prompt(trial, mock_patients)
+    prompt = build_recruitment_prompt(target_trial, scan_list)
     
     try:
         response = client.chat.completions.create(
@@ -127,37 +137,35 @@ def run_recruitment():
         result = json.loads(response.choices[0].message.content)
         evals = result.get("trial_evaluations", [])
         
-        t_info = f"**Target Trial:** {trial.id} | **Requires:** {', '.join(trial.required_conditions)}"
-        eval_md = f"### 📊 Recruitment Summary\n> {result.get('reasoning_summary', 'Batch Complete.')}"
-        
-        patient_display_names = [f"Patient_{i+1}" for i in range(len(mock_patients))]
+        t_info = f"**Target Trial:** {target_trial['id']} | **Requires:** {', '.join(target_trial.get('required_conditions', []))}"
+        eval_md = f"### 📊 Recruitment Summary\n> {result.get('reasoning_summary', 'Batch complete.')}"
         
         table_data = []
-        for i, p_display in enumerate(patient_display_names):
-            p_id = patient_ids[i]
-            # Try to find evaluation by P1, P2... or by the patient ID itself
-            eval_item = next((te for te in evals if te["trial_id"] in [f"P{i+1}", p_id, p_display]), None)
+        for i, p in enumerate(scan_list):
+            p_name = p["name"]
+            eval_item = next((te for te in evals if te["trial_id"] in [p_name, f"Patient_{i+1}"]), None)
             decision = eval_item["decision"].upper() if eval_item else "REVIEW"
             reason = eval_item["reason"] if eval_item else "..."
             icon = "✅" if "ELIGIBLE" in decision else ("❌" if "INELIGIBLE" in decision else "⚠️")
             
-            conds = ", ".join(mock_patients[i].conditions) if mock_patients[i].conditions else "None"
-            table_data.append([p_display, conds, f"{decision} {icon}", reason])
+            conds = ", ".join(p.get("conditions", []))
+            table_data.append([p_name, conds, f"{decision} {icon}", reason])
             
         return t_info, eval_md, table_data
     except Exception as e:
-        return f"Error", f"Error: {e}", []
+        return f"Error loading trial", f"AI Processing Error: {e}", []
 
+# --- Gradio UI ---
 with gr.Blocks(title="Clinical Trial OpenEnv", theme=gr.themes.Soft()) as demo:
     gr.Markdown("# 🏥 Clinical Trial AI Coordination Suite")
     
     with gr.Tabs():
         with gr.TabItem("🩺 1. Patient Diagnostic Assistant"):
-            gr.Markdown("### Diagnostic View (1 Patient vs Regional Trials)")
+            gr.Markdown("### Diagnostic View (1 Patient vs Regional Trial Catalog)")
             with gr.Row():
                 with gr.Column(scale=1):
                     diag_btn = gr.Button("🔍 Run Diagnostic Scan", variant="primary")
-                    diag_p_info = gr.Markdown("Loading...")
+                    diag_p_info = gr.Markdown("Click to start...")
                 with gr.Column(scale=2):
                     diag_eval = gr.Markdown("...")
             diag_table = gr.DataFrame(headers=["Trial ID", "Required Conditions", "AI Decision", "Coordinator Reasoning"], wrap=True)
@@ -169,7 +177,7 @@ with gr.Blocks(title="Clinical Trial OpenEnv", theme=gr.themes.Soft()) as demo:
             with gr.Row():
                 with gr.Column(scale=1):
                     rec_btn = gr.Button("📈 Run Batch Scan", variant="primary")
-                    rec_t_info = gr.Markdown("Loading...")
+                    rec_t_info = gr.Markdown("Click to start...")
                 with gr.Column(scale=2):
                     rec_eval = gr.Markdown("...")
             rec_table = gr.DataFrame(headers=["Patient Name", "Conditions", "AI Decision", "Coordinator Reasoning"], wrap=True)
