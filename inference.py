@@ -65,15 +65,11 @@ You MUST output valid JSON ONLY matching exactly this schema:
     return prompt
 
 def run_agent():
-    # REQUIRED BY CHECKLIST: START
-    print("START")
-    
-    console.print(Panel.fit("[bold blue]🏥 Clinical Trial OpenEnv - AI Coordinator Benchmark[/bold blue]"))
-    
     env = ClinicalTrialEnv()
-    
-    console.print("\n[bold magenta]🔄 [OpenEnv: env.reset()][/bold magenta]")
     obs = env.reset()
+
+    # REQUIRED BY CHECKLIST: [START] task=ID
+    print(f"[START] task={obs.task_id}", flush=True)
     
     console.print(f"  [bold green]▶ Loading Hospital Scenario:[/bold green] {obs.task_id}")
     console.print(f"  [yellow]- Patient Profile:[/yellow] Age {obs.patient.age}, {obs.patient.gender}")
@@ -105,13 +101,10 @@ def run_agent():
         console.print(f"\n[bold red]❌ LLM Failure. Could not parse action correctly. Error: {e}[/bold red]")
         return
         
-    # REQUIRED BY CHECKLIST: STEP
-    print("STEP")
-        
-    console.print("\n[bold magenta]🕹️  [OpenEnv: env.step(action)][/bold magenta]")
-    console.print("  [cyan]⚖️ Submitting LLM Action to Deterministic Grader...[/cyan]\n")
-    
     next_obs, reward, done, info = env.step(action)
+
+    # REQUIRED BY CHECKLIST: [STEP] step=IDX reward=VAL
+    print(f"[STEP] step=1 reward={reward}", flush=True)
     
     # --- PRO-HACKATHON PRESENTATION ---
     console.print(Panel(f"[italic cyan]\"{action.reasoning_summary}\"[/italic cyan]", title="🧠 Coordinator's Core Reasoning", border_style="cyan"))
@@ -164,8 +157,8 @@ def run_agent():
     console.print(Panel(verdict_txt.strip(), title="⚖️ Deterministic Ground-Truth Grader Result", border_style=grade_color))
     console.print("\n[dim italic]This benchmark mathematically proves the Meta LLM can securely automate clinical match workflows.[/dim italic]\n")
 
-    # REQUIRED BY CHECKLIST: END
-    print("END")
+    # REQUIRED BY CHECKLIST: [END] task=ID score=VAL steps=N
+    print(f"[END] task={obs.task_id} score={reward} steps=1", flush=True)
 
 if __name__ == "__main__":
     run_agent()
