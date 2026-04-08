@@ -1,4 +1,9 @@
 import os
+import sys
+
+# Ensure the root directory is in the path so we can import environment and models
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from fastapi import FastAPI, Body
 from environment import ClinicalTrialEnv
 from models import Action
@@ -38,11 +43,12 @@ def get_state():
     """Return the current state of the environment."""
     return env.state().model_dump()
 
-def start_server():
+def main():
+    """Entry point required by OpenEnv validator."""
     import uvicorn
     # Hugging Face Spaces port is usually 7860
     port = int(os.environ.get("PORT", 7860))
-    uvicorn.run("app:app", host="0.0.0.0", port=port)
+    uvicorn.run("server.app:app", host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
-    start_server()
+    main()

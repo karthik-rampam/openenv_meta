@@ -20,10 +20,10 @@ dependencies = [
 ]
 
 [project.scripts]
-server = "app:start_server"
+server = "server.app:main"
 
 [tool.setuptools]
-packages = ["."]
+packages = ["server", "."]
 
 [tool.openenv]
 entrypoint = "environment:ClinicalTrialEnv"
