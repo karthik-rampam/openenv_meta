@@ -15,113 +15,104 @@ API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 env = ClinicalTrialEnv()
 
-def build_prompt(obs):
+def build_diagnostic_prompt(obs):
     patient = obs.patient.model_dump()
     trials = [t.model_dump() for t in obs.trials]
-    
-    prompt = f"""
-You are an expert Clinical Trial Coordinator AI. 
-Evaluate the following patient against the provided clinical trials.
+    return f"""
+You are an expert Clinical Trial Coordinator. 
+DIAGNOSTIC MODE: Evaluate ONE patient against ALL available trials.
 
-PATIENT RECORD:
-{json.dumps(patient, indent=2)}
+PATIENT: {json.dumps(patient)}
+TRIALS: {json.dumps(trials)}
 
-AVAILABLE TRIALS:
-{json.dumps(trials, indent=2)}
-
-YOUR TASK:
-Determine if the patient is "eligible", "ineligible", or "needs_review" for EACH trial.
-Also, rank the trials from most appropriate to least appropriate.
-
-You MUST output valid JSON ONLY matching exactly this schema:
-{{
-  "reasoning_summary": "Write 2 sentences explaining your medical thought process.",
-  "trial_evaluations": [
-    {{
-      "trial_id": "string",
-      "decision": "eligible" | "ineligible" | "needs_review",
-      "criterion_evaluations": [
-        {{
-          "criterion_name": "string",
-          "met": true/false,
-          "reason": "string"
-        }}
-      ]
-    }}
-  ],
-  "ranked_trial_ids": ["trial_id_1", "trial_id_2"],
-  "confidence": 0.0 to 1.0
+Output JSON: {{
+  "reasoning_summary": "...",
+  "trial_evaluations": [...],
+  "ranked_trial_ids": [...],
+  "confidence": 0.9
 }}
 """
-    return prompt
 
-def run_analysis():
+def build_recruitment_prompt(trial, patients):
+    return f"""
+You are an expert Recruitment Specialist. 
+RECRUITMENT MODE: Evaluate ONE trial against a batch of patients.
+
+TRIAL: {json.dumps(trial.model_dump())}
+PATIENTS: {json.dumps([p.model_dump() for p in patients])}
+
+Output JSON: {{
+  "reasoning_summary": "...",
+  "trial_evaluations": [...],
+  "ranked_trial_ids": [...],
+  "confidence": 0.9
+}}
+"""
+
+def run_diagnostic():
     obs = env.reset()
-    
-    # 1. Prepare Info for Display
-    patient_md = f"**ID:** {obs.task_id} | **Age:** {obs.patient.age} | **Gender:** {obs.patient.gender}\n\n**Conditions:** {', '.join(obs.patient.conditions) if obs.patient.conditions else 'None'}"
-    
-    trial_md = ""
-    for t in obs.trials:
-        trial_md += f"- **{t.id}**: Requires ({', '.join(t.required_conditions)})\n"
-
-    # 2. AI Call
     client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
-    prompt = build_prompt(obs)
+    prompt = build_diagnostic_prompt(obs)
     
-    try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[{"role": "user", "content": prompt}],
-            response_format={ "type": "json_object" }
-        )
-        result_json = json.loads(response.choices[0].message.content)
-        action = Action(**result_json)
-        
-        # 3. Grade
-        next_obs, reward, done, info = env.step(action)
-        
-        # 4. Format Output
-        eval_md = f"### 🧠 AI Reasoning\n> {action.reasoning_summary}\n\n"
-        eval_md += f"### ⚖️ Grader Score: **{reward*100:.1f}%**\n\n"
-        
-        results_data = []
-        for t_eval in action.trial_evaluations:
-            icon = "✅" if t_eval.decision == "eligible" else ("❌" if t_eval.decision == "ineligible" else "⚠️")
-            results_data.append([t_eval.trial_id, t_eval.decision.upper(), icon])
-            
-        return patient_md, trial_md, eval_md, results_data
-        
-    except Exception as e:
-        return patient_md, trial_md, f"Error: {e}", []
+    response = client.chat.completions.create(model=MODEL_NAME, messages=[{"role": "user", "content": prompt}], response_format={"type": "json_object"})
+    result = json.loads(response.choices[0].message.content)
+    action = Action(**result)
+    _, reward, _, _ = env.step(action)
 
-# --- Gradio UI ---
-with gr.Blocks(title="Clinical Trial AI Dashboard", theme=gr.themes.Soft()) as demo:
-    gr.Markdown("# 🏥 Clinical Trial AI Coordinator Dashboard")
-    gr.Markdown("Click the button below to load a random patient scenario and see the Llama 3 AI process their eligibility.")
+    p_info = f"**Patient:** {obs.task_id} ({obs.patient.age}y, {obs.patient.gender})\n**History:** {', '.join(obs.patient.conditions)}"
+    eval_md = f"### AI Reasoning\n{action.reasoning_summary}\n\n**Match Grade:** {reward*100:.1f}%"
     
-    with gr.Row():
-        with gr.Column(scale=1):
-            btn = gr.Button("🔄 Run New Analysis", variant="primary")
-            gr.Markdown("### 👤 Patient Information")
-            patient_info = gr.Markdown("Click button to load...")
-            
-        with gr.Column(scale=1):
-            gr.Markdown("### 🧪 Available Trials")
-            trials_info = gr.Markdown("...")
+    table_data = []
+    for te in action.trial_evaluations:
+        table_data.append([te.trial_id, te.decision.upper()])
+        
+    return p_info, eval_md, table_data
 
-    with gr.Row():
-        with gr.Column(scale=2):
-            analysis_output = gr.Markdown("### 🤖 AI Evaluation Result")
-            
-        with gr.Column(scale=1):
-            results_table = gr.HighlightedText(label="Match Results")
-            results_df = gr.DataFrame(headers=["Trial ID", "Decision", "Status"], datatype=["str", "str", "str"])
+def run_recruitment():
+    obs = env.reset() # Get a random case to pick a trial and patients
+    trial = obs.trials[0]
+    # In a real batch, we'd have multiple patients. For demo, we'll use 3 versions of the patient or siblings
+    mock_patients = [obs.patient] 
+    
+    client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
+    prompt = build_recruitment_prompt(trial, mock_patients)
+    
+    response = client.chat.completions.create(model=MODEL_NAME, messages=[{"role": "user", "content": prompt}], response_format={"type": "json_object"})
+    result = json.loads(response.choices[0].message.content)
+    action = Action(**result)
+    
+    t_info = f"**Trial ID:** {trial.id}\n**Criteria:** {', '.join(trial.required_conditions)}"
+    eval_md = f"### Recruitment Summary\n{action.reasoning_summary}"
+    
+    table_data = []
+    for te in action.trial_evaluations:
+        table_data.append([obs.task_id, te.decision.upper()])
+        
+    return t_info, eval_md, table_data
 
-    btn.click(
-        fn=run_analysis,
-        outputs=[patient_info, trials_info, analysis_output, results_df]
-    )
+with gr.Blocks(title="Clinical Trial OpenEnv", theme=gr.themes.Soft()) as demo:
+    gr.Markdown("# 🏥 Clinical Trial AI Coordination Suite")
+    
+    with gr.Tabs():
+        with gr.TabItem("🩺 1. Patient Diagnostic Assistant"):
+            gr.Markdown("### One Patient vs. Regional Trial Catalog")
+            diag_btn = gr.Button("🔍 Run Patient Analysis", variant="primary")
+            with gr.Row():
+                diag_p_info = gr.Markdown("Select patient to see details...")
+                diag_eval = gr.Markdown("AI analysis will appear here...")
+            diag_table = gr.DataFrame(headers=["Trial ID", "Match Status"])
+            
+            diag_btn.click(run_diagnostic, outputs=[diag_p_info, diag_eval, diag_table])
+            
+        with gr.TabItem("📊 2. Batch Recruitment System"):
+            gr.Markdown("### One Trial vs. Hospital Patient Database")
+            rec_btn = gr.Button("📈 Run Batch Recruitment", variant="primary")
+            with gr.Row():
+                rec_t_info = gr.Markdown("Select trial to scan database...")
+                rec_eval = gr.Markdown("Recruitment stats will appear here...")
+            rec_table = gr.DataFrame(headers=["Patient ID", "Eligibility"])
+            
+            rec_btn.click(run_recruitment, outputs=[rec_t_info, rec_eval, rec_table])
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=7861)
