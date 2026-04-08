@@ -13,13 +13,10 @@ from dashboard import demo # Import the dashboard we just created
 
 app = FastAPI(title="Clinical Trial OpenEnv API")
 
-# Mount Gradio Dashboard
-app = gr.mount_gradio_app(app, demo, path="/") # We'll put the UI at the root
-
 # Initialize the environment
 env = ClinicalTrialEnv()
 
-@app.get("/")
+@app.get("/health")
 def health_check():
     return {"status": "running", "environment": "clinical-trial-openenv"}
 
@@ -48,12 +45,15 @@ def get_state():
     """Return the current state of the environment."""
     return env.state().model_dump()
 
+# Mount Gradio Dashboard LAST to avoid route interception
+# We use path="/" so it appears at the root, but API routes registered above take precedence
+app = gr.mount_gradio_app(app, demo, path="/")
+
 def main():
     """Entry point required by OpenEnv validator."""
     import uvicorn
-    # Hugging Face Spaces port is usually 7860
     port = int(os.environ.get("PORT", 7860))
-    uvicorn.run("server.app:app", host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
     main()
