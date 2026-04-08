@@ -4,12 +4,17 @@ import sys
 # Ensure the root directory is in the path so we can import environment and models
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import gradio as gr
 from fastapi import FastAPI, Body
 from environment import ClinicalTrialEnv
 from models import Action
 from typing import Dict, Any
+from dashboard import demo # Import the dashboard we just created
 
 app = FastAPI(title="Clinical Trial OpenEnv API")
+
+# Mount Gradio Dashboard
+app = gr.mount_gradio_app(app, demo, path="/") # We'll put the UI at the root
 
 # Initialize the environment
 env = ClinicalTrialEnv()
