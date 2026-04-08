@@ -15,8 +15,12 @@ dependencies = [
     "rich>=13.0.0",
     "python-dotenv>=1.0.0",
     "fastapi>=0.100.0",
-    "uvicorn>=0.20.0"
+    "uvicorn>=0.20.0",
+    "openenv-core>=0.2.0"
 ]
+
+[project.scripts]
+server = "app:start_server"
 
 [tool.setuptools]
 packages = ["."]

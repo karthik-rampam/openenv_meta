@@ -38,8 +38,11 @@ def get_state():
     """Return the current state of the environment."""
     return env.state().model_dump()
 
-if __name__ == "__main__":
+def start_server():
     import uvicorn
     # Hugging Face Spaces port is usually 7860
     port = int(os.environ.get("PORT", 7860))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run("app:app", host="0.0.0.0", port=port)
+
+if __name__ == "__main__":
+    start_server()
