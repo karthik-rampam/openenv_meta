@@ -1,3 +1,12 @@
+---
+title: Clinical Trial OpenEnv
+emoji: 🏥
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
 # AI Clinical Trial Coordinator 🏥
 
 A Meta Llama 3 powered healthcare platform that automates clinical trial matching. We built two distinct AI products to solve the biggest bottlenecks in medical research recruitment:
